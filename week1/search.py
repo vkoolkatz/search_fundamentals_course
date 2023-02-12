@@ -116,16 +116,41 @@ def create_query(user_query, filters, sort="_score", sortDir="desc"):
         'size': 10,
         "query": {
             #"match_all": {} # Replace me with a query that both searches and filters
-            "bool": {
-                "must": {
-                    "query_string": {
-                        "query": user_query,
-                        "fields": ["name", "shortDescription", "longDescription"],
-                        "phrase_slop": 3,
-                    },
+            "function_score": {
+                "query": {
+                    "bool":{
+                        "must":[
+                            {"query_string": {
+                                "query": user_query,
+                                "fields": ["name^100", "shortDescription^50", "longDescription^10", "department"],
+                                "phrase_slop": 3
+                            }}
+                        ],
+                        "filter": filters
+                    }
                 },
-                "filter": filters
-            },
+                "boost_mode": "replace",
+                "score_mode": "avg",
+                "functions": [{
+                        "field_value_factor": {
+                            "field": "salesRankLongTerm",
+                            "missing": 100000000,
+                            "modifier": "reciprocal"
+                        }
+                    }, {
+                        "field_value_factor": {
+                            "field": "salesRankMediumTerm",
+                            "missing": 100000000,
+                            "modifier": "reciprocal"
+                        }
+                    }, {
+                        "field_value_factor": {
+                            "field": "salesRankShortTerm",
+                            "missing": 100000000,
+                            "modifier": "reciprocal"
+                        }
+                }]
+            }
         },
         "aggs": {
             #### Step 4.b.i: create the appropriate query and aggregations here
